@@ -1,32 +1,45 @@
-# Python
+# ----------------------------
+# Python cache and artifacts
+# ----------------------------
 __pycache__/
 *.py[cod]
 *.egg-info/
 
+# ----------------------------
 # Virtual environments
+# ----------------------------
 .venv/
 env/
 venv/
 
+# ----------------------------
 # Streamlit cache
+# ----------------------------
 .streamlit/
 
-# OS
+# ----------------------------
+# OS-specific files
+# ----------------------------
 .DS_Store
 Thumbs.db
 
-# Ignore raw data
+# ----------------------------
+# Data files
+# ----------------------------
+# Ignore raw data (never commit these)
 data/raw/
 
-# Ignore large processed datasets by default
-data/processed/*.csv
+# Ignore all processed CSVs by default
+data/processed/combined_*.csv
 
-# BUT allow demo dataset(s) only
+# BUT keep demo dataset(s) for Streamlit app
 !data/processed/combined_demo.csv
 
-# Ignore model artifacts by default
+# ----------------------------
+# Models
+# ----------------------------
+# Ignore all model artifacts by default
 models/*
 
 # If you want to keep a small placeholder model, un-ignore it
 #!models/demo_model.joblib
-
