@@ -9,7 +9,7 @@ import pandas as pd
 import streamlit as st
 import altair as alt
 
-# Optional/extra viz
+# Optional wordclouds
 try:
     from wordcloud import WordCloud
     HAS_WORDCLOUD = True
@@ -17,7 +17,7 @@ except Exception:
     HAS_WORDCLOUD = False
 
 # -----------------------------
-# Page config & basic styles
+# Page setup
 # -----------------------------
 st.set_page_config(
     page_title="💄✨ Hybrid Sentiment — Fashion & Cosmetics",
@@ -34,18 +34,16 @@ st.markdown(
       .app-hero small { color:#5f5f6e; }
       .badge { display:inline-block;padding:4px 10px;border-radius:999px;
                font-size:12px;background:#f5f5fb;margin-right:6px;border:1px solid #e8e8f7 }
-      .section-title{margin-top:1rem}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 # -----------------------------
-# Constants
+# Paths / column aliases
 # -----------------------------
-DEMO_PATH = "data/processed/combined_demo.csv"  # small repo sample
+DEMO_PATH = "data/processed/combined_demo.csv"  # repo demo file
 
-# column alias map (auto-detect)
 ALIASES = {
     "text": ["review_text", "text", "content", "body", "title"],
     "label": ["hybrid_label", "review_label", "target", "label"],
@@ -59,10 +57,10 @@ ALIASES = {
 }
 
 # -----------------------------
-# Utilities
+# Utils
 # -----------------------------
-def pick_column(df: pd.DataFrame, names: List[str]) -> Optional[str]:
-    for c in names:
+def pick_column(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
+    for c in candidates:
         if c in df.columns:
             return c
     return None
@@ -81,13 +79,13 @@ def clean_tokens(s: str) -> list[str]:
 def safe_sample(df: pd.DataFrame, n: int, seed: int = 42) -> pd.DataFrame:
     if len(df) == 0:
         return df.iloc[0:0]
-    n = min(n, len(df))
+    n = min(int(n), len(df))
     if n <= 0:
         return df.iloc[0:0]
     return df.sample(n=n, random_state=seed)
 
 # -----------------------------
-# Data loaders (Fast / Full)
+# Data loaders
 # -----------------------------
 @st.cache_data(show_spinner=True)
 def load_demo() -> Tuple[pd.DataFrame, str]:
@@ -106,7 +104,7 @@ def load_full_drive(file_id: str) -> Tuple[pd.DataFrame, str]:
     if not file_id.strip():
         return pd.DataFrame(), "No Drive file ID provided"
     try:
-        # ensure gdown is present in the runtime (requirements.txt has gdown)
+        # gdown is in requirements.txt; downloads to /tmp/full.csv on Cloud
         cmd = ["gdown", "--id", file_id, "-O", "/tmp/full.csv", "--fuzzy"]
         subprocess.check_call(cmd)
         return read_csv_cached("/tmp/full.csv"), "Full dataset (Google Drive)"
@@ -114,7 +112,7 @@ def load_full_drive(file_id: str) -> Tuple[pd.DataFrame, str]:
         return pd.DataFrame(), f"Drive download failed: {e}"
 
 # -----------------------------
-# Header + Sidebar
+# Header
 # -----------------------------
 st.markdown(
     """
@@ -129,39 +127,60 @@ st.markdown(
 with st.expander("❓ User Manual — click to open", expanded=False):
     st.markdown(
         """
-**Modes**
+### Modes
 - **Fast** → uses a small demo sample (`data/processed/combined_demo.csv`) — best for Cloud.
 - **Full** → analyze full CSV from a **local path** or **Google Drive** ID.
 
-**Upload (optional)** → analyze your own CSV (overrides Fast/Full).
+### Upload (optional)
+If you upload a CSV in the sidebar, it **overrides** Fast/Full and is used immediately.
 
-**Auto-detected columns**  
+### Auto-detected columns
 Text · Label · Brand · Product · Price · Rating · Verified · Timestamp  
-(We match common names; use the same names as your processed files.)
+(Use the same names as your processed pipeline if possible. Common variants are detected.)
 
-**Tips**  
-- If a section says “no data”, clear filters or switch modes.  
-- Wordclouds need `wordcloud` (already in requirements).  
-- Full via Drive needs `gdown` (already in requirements).
+---
+
+### 🔑 How to use **Full** mode with **Google Drive**
+1. Upload your CSV to **Google Drive**.
+2. Right-click the file → **Get link** → set sharing to **Anyone with the link (Viewer)**.
+3. Copy the file link. Example:  
+   `https://drive.google.com/file/d/1rymwmbi6siD7JuawPPbrgLryrhV_g1wF/view`
+4. Extract the **file ID** (string after `/d/` and before `/view`).  
+   👉 From the example above, the file ID is:  
+   **`1rymwmbi6siD7JuawPPbrgLryrhV_g1wF`**
+5. In the left sidebar, switch to **Full** and paste this ID into **Google Drive file ID**.
+6. The app will download and analyze your full dataset.
+
+**Notes**
+- On Streamlit Cloud, **local file paths** are **not accessible**; use Drive or upload instead.
+- Wordclouds require the `wordcloud` package (already in requirements).
+- Drive download uses `gdown` (already in requirements).
 """
     )
 
+# -----------------------------
+# Sidebar inputs
+# -----------------------------
 st.sidebar.header("Data & Controls")
 
 mode = st.sidebar.radio("Mode", ["Fast", "Full"], index=0)
-uploaded = st.sidebar.file_uploader("Upload CSV to analyze (optional)", type=["csv"])
+uploaded = st.sidebar.file_uploader("Upload a CSV to analyze (optional)", type=["csv"])
 
 drive_id = st.sidebar.text_input(
     "Google Drive file ID (Full mode, optional)",
-    help="From a shared link: https://drive.google.com/file/d/**FILE_ID**/view"
+    help=(
+        "Paste the file ID from a shared Drive URL. Example:\n"
+        "Link: https://drive.google.com/file/d/1ABC123xyz/view  →  File ID: 1ABC123xyz\n"
+        "Make sure the Drive file is shared as 'Anyone with the link (Viewer)'."
+    ),
 )
 local_path = st.sidebar.text_input(
     "Local full CSV path (optional)",
-    help="Example: C:/Users/you/Desktop/combined_hybrid.csv"
+    help="Only works when running locally. Example: C:/Users/you/Desktop/combined_hybrid.csv",
 )
 
 # -----------------------------
-# Load selected source
+# Load data based on inputs
 # -----------------------------
 if uploaded is not None:
     df = pd.read_csv(uploaded, low_memory=False)
@@ -169,11 +188,11 @@ if uploaded is not None:
 else:
     if mode == "Fast":
         df, source = load_demo()
-    else:
+    else:  # Full
         df, source = (pd.DataFrame(), "Full (no file provided)")
-        if local_path.strip():
+        if local_path.strip():      # local dev only
             df, source = load_full_local(local_path.strip())
-        elif drive_id.strip():
+        elif drive_id.strip():      # works on Cloud
             df, source = load_full_drive(drive_id.strip())
 
 if df.empty:
@@ -196,10 +215,10 @@ COL_VER    = pick_column(df, ALIASES["verified"])
 missing_required = [c for c in [("text", COL_TEXT), ("label", COL_LABEL)] if c[1] is None]
 if missing_required:
     st.error(f"Required columns not found: {[m[0] for m in missing_required]}. "
-             f"Found columns: {list(df.columns)[:20]} …")
+             f"Found columns: {list(df.columns)[:24]} …")
     st.stop()
 
-# Timestamp parse (if present)
+# Parse timestamp if present
 if COL_TIME:
     try:
         df[COL_TIME] = pd.to_datetime(df[COL_TIME], errors="coerce")
@@ -218,14 +237,14 @@ st.markdown(
 # Sidebar filters
 # -----------------------------
 with st.sidebar.expander("Interactive filters", expanded=True):
-    # Brand
+    # Brand filter
     if COL_BRAND and df[COL_BRAND].notna().any():
         brands = sorted([str(x) for x in df[COL_BRAND].dropna().unique().tolist()])[:3000]
         sel_brands = st.multiselect("Filter by brand", options=brands, default=[])
     else:
         sel_brands = []
 
-    # Price
+    # Price range
     if COL_PRICE:
         prices = pd.to_numeric(df[COL_PRICE], errors="coerce")
         if prices.notna().any():
@@ -238,7 +257,7 @@ with st.sidebar.expander("Interactive filters", expanded=True):
         price_range = None
         st.caption("⚠️ Price column not available.")
 
-    # Verified
+    # Verified filter
     ver_choice = "All"
     if COL_VER and df[COL_VER].notna().any():
         ver_choice = st.selectbox("Verified purchase filter", ["All", "Verified only", "Unverified only"])
@@ -274,14 +293,13 @@ else:
     st.info("No label counts to display.")
 
 # -----------------------------
-# Top keywords by sentiment (lightweight)
+# Top keywords by sentiment
 # -----------------------------
 st.markdown("### Top keywords by sentiment (filtered sample)")
 if COL_TEXT and COL_LABEL and len(filtered) > 0:
     sample_n = st.slider("Sample size for keywords", 200, 10000, 2000, 100)
     base = filtered[[COL_TEXT, COL_LABEL]].dropna()
-    avail = len(base)
-    if avail == 0:
+    if len(base) == 0:
         st.write("No text samples available for keyword extraction.")
     else:
         tmp = safe_sample(base, n=sample_n, seed=42)
@@ -319,14 +337,14 @@ else:
     st.write("Need text + label columns for keywords.")
 
 # -----------------------------
-# Product-level rollups + download
+# Product-level rollups + downloads
 # -----------------------------
 st.subheader("Product-level rollups (filtered)")
 if (COL_PID or COL_PTITLE) and len(filtered) > 0:
     group_cols = [c for c in [COL_PID, COL_PTITLE, COL_BRAND] if c]
     roll = filtered.copy()
 
-    # rating
+    # numeric rating if available
     if COL_RATING and COL_RATING in roll.columns:
         roll["_rating_num"] = pd.to_numeric(roll[COL_RATING], errors="coerce")
     else:
@@ -360,7 +378,7 @@ if (COL_PID or COL_PTITLE) and len(filtered) > 0:
         mime="text/csv",
     )
 
-    # -------- Top-N products chart (after rollups)
+    # Top-N products chart
     st.subheader("Top products by selected metric")
     metric = st.selectbox("Sort top products by", ["positive_share", "avg_rating", "n_reviews"], index=0)
     top_n = st.slider("Top N products", 5, 50, 20, 1)
@@ -401,7 +419,6 @@ if COL_TIME and COL_LABEL and len(filtered) > 0 and filtered[COL_TIME].notna().a
     ts = filtered[[COL_TIME, COL_LABEL]].dropna().copy()
     ts["month"] = pd.to_datetime(ts[COL_TIME], errors="coerce").dt.to_period("M").astype(str)
     monthly = ts.groupby(["month", COL_LABEL]).size().rename("count").reset_index()
-
     if len(monthly) > 0:
         line = alt.Chart(monthly).mark_line(point=True).encode(
             x=alt.X("month:T", title="Month"),
@@ -416,7 +433,7 @@ else:
     st.caption("No usable timestamp column for trends.")
 
 # -----------------------------
-# Single review prediction (toy)
+# Single review prediction (demo)
 # -----------------------------
 with st.expander("Single review prediction (demo)", expanded=False):
     t = st.text_area("Paste review text", placeholder="E.g., 'Love this lipstick — color pops and lasts!'")
