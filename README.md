@@ -142,22 +142,19 @@ pip install -r requirements.txt
        alt="Feature engineering and cleaning step" width="420"/>
 </p>
 
-<!-- Side by side 3 (clean screenshot swapped in) -->
+<!-- Side by side 3 -->
 <p align="center">
-  <img src="https://raw.githubusercontent.com/dikshajain24/hybrid-sentiment-three/main/ae1ffb91-ae00-47a1-b8f0-f20980de1170.png" 
-       alt="Visualization of sentiment distribution (clean)" width="420"/>
   <img src="https://github.com/user-attachments/assets/4108e9d0-4c64-4927-a45a-c885da93cab9" 
        alt="Model performance metrics" width="420"/>
+  <img src="https://github.com/user-attachments/assets/77ad05b0-42c6-49c0-a05e-8c0a0dcf955b" 
+       alt="Detailed analysis report view" width="420"/>
 </p>
 
 <!-- Side by side 4 -->
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/77ad05b0-42c6-49c0-a05e-8c0a0dcf955b" 
-       alt="Detailed analysis report view" width="420"/>
   <img src="https://github.com/user-attachments/assets/f348075c-b257-4700-bcc7-d0aa90952953" 
        alt="Final results and insights dashboard" width="420"/>
 </p>
-
 
 
 🔒 Privacy & limitations
