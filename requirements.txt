@@ -14,10 +14,9 @@ nltk==3.9.1
 
 # Visualization
 matplotlib==3.10.6
+wordcloud==1.9.3
 
 # Utilities
 requests==2.32.5
 tqdm==4.67.1
-
-# Optional: if you use word clouds or extra analysis
-wordcloud==1.9.3
+gdown==5.2.0   # for downloading from Google Drive
