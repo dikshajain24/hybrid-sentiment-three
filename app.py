@@ -1,8 +1,7 @@
 import os
 import re
 import string
-import subprocess
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -34,6 +33,7 @@ st.markdown(
       .app-hero small { color:#5f5f6e; }
       .badge { display:inline-block;padding:4px 10px;border-radius:999px;
                font-size:12px;background:#f5f5fb;margin-right:6px;border:1px solid #e8e8f7 }
+      .muted { color:#6d6d7a }
     </style>
     """,
     unsafe_allow_html=True,
@@ -42,7 +42,7 @@ st.markdown(
 # -----------------------------
 # Paths / column aliases
 # -----------------------------
-DEMO_PATH = "data/processed/combined_demo.csv"  # repo demo file
+DEMO_PATH = "data/processed/combined_demo.csv"  # repo demo sample (Fast mode)
 
 ALIASES = {
     "text": ["review_text", "text", "content", "body", "title"],
@@ -85,33 +85,6 @@ def safe_sample(df: pd.DataFrame, n: int, seed: int = 42) -> pd.DataFrame:
     return df.sample(n=n, random_state=seed)
 
 # -----------------------------
-# Data loaders
-# -----------------------------
-@st.cache_data(show_spinner=True)
-def load_demo() -> Tuple[pd.DataFrame, str]:
-    if not os.path.exists(DEMO_PATH):
-        return pd.DataFrame(), "Demo sample not found"
-    return read_csv_cached(DEMO_PATH), "Demo sample (repo)"
-
-@st.cache_data(show_spinner=True)
-def load_full_local(path: str) -> Tuple[pd.DataFrame, str]:
-    if not os.path.exists(path):
-        return pd.DataFrame(), f"Local path not found: {path}"
-    return read_csv_cached(path), f"Full dataset (local): {os.path.basename(path)}"
-
-@st.cache_data(show_spinner=True)
-def load_full_drive(file_id: str) -> Tuple[pd.DataFrame, str]:
-    if not file_id.strip():
-        return pd.DataFrame(), "No Drive file ID provided"
-    try:
-        # gdown is in requirements.txt; downloads to /tmp/full.csv on Cloud
-        cmd = ["gdown", "--id", file_id, "-O", "/tmp/full.csv", "--fuzzy"]
-        subprocess.check_call(cmd)
-        return read_csv_cached("/tmp/full.csv"), "Full dataset (Google Drive)"
-    except Exception as e:
-        return pd.DataFrame(), f"Drive download failed: {e}"
-
-# -----------------------------
 # Header
 # -----------------------------
 st.markdown(
@@ -127,34 +100,18 @@ st.markdown(
 with st.expander("❓ User Manual — click to open", expanded=False):
     st.markdown(
         """
-### Modes
-- **Fast** → uses a small demo sample (`data/processed/combined_demo.csv`) — best for Cloud.
-- **Full** → analyze full CSV from a **local path** or **Google Drive** ID.
-
-### Upload (optional)
-If you upload a CSV in the sidebar, it **overrides** Fast/Full and is used immediately.
+### Mode
+- **Fast** (this app) → uses a small **demo sample** from the repo: `data/processed/combined_demo.csv`.
+- You can **upload your own CSV** in the sidebar to analyze it directly (overrides the demo).
 
 ### Auto-detected columns
 Text · Label · Brand · Product · Price · Rating · Verified · Timestamp  
-(Use the same names as your processed pipeline if possible. Common variants are detected.)
+(Use the same names as your processed pipeline if possible. Common variants are auto-detected.)
 
----
-
-### 🔑 How to use **Full** mode with **Google Drive**
-1. Upload your CSV to **Google Drive**.
-2. Right-click the file → **Get link** → set sharing to **Anyone with the link (Viewer)**.
-3. Copy the file link. Example:  
-   `https://drive.google.com/file/d/1rymwmbi6siD7JuawPPbrgLryrhV_g1wF/view`
-4. Extract the **file ID** (string after `/d/` and before `/view`).  
-   👉 From the example above, the file ID is:  
-   **`1rymwmbi6siD7JuawPPbrgLryrhV_g1wF`**
-5. In the left sidebar, switch to **Full** and paste this ID into **Google Drive file ID**.
-6. The app will download and analyze your full dataset.
-
-**Notes**
-- On Streamlit Cloud, **local file paths** are **not accessible**; use Drive or upload instead.
+### Tips
+- If a section says “no data”, clear filters or upload a CSV with matching columns.
 - Wordclouds require the `wordcloud` package (already in requirements).
-- Drive download uses `gdown` (already in requirements).
+- Download your **filtered dataset** and **product rollups** from the buttons in each section.
 """
     )
 
@@ -163,45 +120,20 @@ Text · Label · Brand · Product · Price · Rating · Verified · Timestamp
 # -----------------------------
 st.sidebar.header("Data & Controls")
 
-mode = st.sidebar.radio("Mode", ["Fast", "Full"], index=0)
 uploaded = st.sidebar.file_uploader("Upload a CSV to analyze (optional)", type=["csv"])
 
-drive_id = st.sidebar.text_input(
-    "Google Drive file ID (Full mode, optional)",
-    help=(
-        "Paste the file ID from a shared Drive URL. Example:\n"
-        "Link: https://drive.google.com/file/d/1ABC123xyz/view  →  File ID: 1ABC123xyz\n"
-        "Make sure the Drive file is shared as 'Anyone with the link (Viewer)'."
-    ),
-)
-local_path = st.sidebar.text_input(
-    "Local full CSV path (optional)",
-    help="Only works when running locally. Example: C:/Users/you/Desktop/combined_hybrid.csv",
-)
-
-# -----------------------------
-# Load data based on inputs
-# -----------------------------
+# Load data: uploaded overrides demo
 if uploaded is not None:
     df = pd.read_csv(uploaded, low_memory=False)
     source = "User upload"
 else:
-    if mode == "Fast":
-        df, source = load_demo()
-    else:  # Full
-        df, source = (pd.DataFrame(), "Full (no file provided)")
-        if local_path.strip():      # local dev only
-            df, source = load_full_local(local_path.strip())
-        elif drive_id.strip():      # works on Cloud
-            df, source = load_full_drive(drive_id.strip())
+    if not os.path.exists(DEMO_PATH):
+        st.error("Demo sample not found. Please add `data/processed/combined_demo.csv` to the repo or upload a CSV.")
+        st.stop()
+    df = read_csv_cached(DEMO_PATH)
+    source = "Demo sample (repo)"
 
-if df.empty:
-    st.info("No data to show. Upload a CSV or provide Full dataset details, or switch to **Fast**.")
-    st.stop()
-
-# -----------------------------
 # Column detection
-# -----------------------------
 COL_TEXT   = pick_column(df, ALIASES["text"])
 COL_LABEL  = pick_column(df, ALIASES["label"])
 COL_BRAND  = pick_column(df, ALIASES["brand"])
@@ -218,17 +150,14 @@ if missing_required:
              f"Found columns: {list(df.columns)[:24]} …")
     st.stop()
 
-# Parse timestamp if present
 if COL_TIME:
     try:
         df[COL_TIME] = pd.to_datetime(df[COL_TIME], errors="coerce")
     except Exception:
         pass
 
-# Source badges
 st.markdown(
     f"**Data source:** <span class='badge'>{source}</span> "
-    f"<span class='badge'>Mode: {mode}</span> "
     f"<span class='badge'>Rows: {len(df):,}</span>",
     unsafe_allow_html=True,
 )
@@ -237,7 +166,7 @@ st.markdown(
 # Sidebar filters
 # -----------------------------
 with st.sidebar.expander("Interactive filters", expanded=True):
-    # Brand filter
+    # Brand
     if COL_BRAND and df[COL_BRAND].notna().any():
         brands = sorted([str(x) for x in df[COL_BRAND].dropna().unique().tolist()])[:3000]
         sel_brands = st.multiselect("Filter by brand", options=brands, default=[])
@@ -274,6 +203,14 @@ if ver_choice != "All" and COL_VER:
     filtered = filtered[flag] if ver_choice == "Verified only" else filtered[~flag]
 
 st.caption(f"Filtered rows: **{len(filtered):,}**")
+
+# Offer filtered dataset download
+st.download_button(
+    "⬇️ Download filtered dataset with hybrid labels",
+    data=filtered.to_csv(index=False).encode("utf-8"),
+    file_name="filtered_dataset.csv",
+    mime="text/csv",
+)
 
 # -----------------------------
 # Analytics: label counts
@@ -337,6 +274,86 @@ else:
     st.write("Need text + label columns for keywords.")
 
 # -----------------------------
+# Brand leaderboard
+# -----------------------------
+st.subheader("Brand leaderboard (filtered)")
+if COL_BRAND and COL_LABEL and len(filtered) > 0:
+    b = filtered.copy()
+    # numeric rating if available
+    if COL_RATING and COL_RATING in b.columns:
+        b["_rating_num"] = pd.to_numeric(b[COL_RATING], errors="coerce")
+    else:
+        b["_rating_num"] = np.nan
+
+    brand_agg = b.groupby(COL_BRAND).agg(
+        n_reviews=(COL_LABEL, "count"),
+        positive_share=(COL_LABEL, lambda s: float((s.astype(str) == "positive").mean())),
+        avg_rating=("_rating_num", "mean"),
+    ).reset_index()
+
+    st.dataframe(brand_agg.sort_values(["positive_share", "n_reviews"], ascending=[False, False]).head(50),
+                 use_container_width=True)
+
+    # Chart: positive share by brand (top 20 by reviews)
+    top20 = brand_agg.sort_values("n_reviews", ascending=False).head(20)
+    if len(top20) > 0:
+        c = alt.Chart(top20).mark_bar().encode(
+            x=alt.X("positive_share:Q", title="Positive share"),
+            y=alt.Y(f"{COL_BRAND}:N", sort="-x"),
+            color=alt.Color("avg_rating:Q", scale=alt.Scale(scheme="blues"), legend=alt.Legend(title="Avg rating")),
+            tooltip=[COL_BRAND, "n_reviews", "positive_share", "avg_rating"]
+        ).properties(height=400)
+        st.altair_chart(c, use_container_width=True)
+else:
+    st.info("Brand column not found, skipping brand leaderboard.")
+
+# -----------------------------
+# Price bands vs positive share
+# -----------------------------
+st.subheader("Price bands vs positive share (filtered)")
+if COL_PRICE and COL_LABEL and len(filtered) > 0:
+    f = filtered.copy()
+    f["_price"] = pd.to_numeric(f[COL_PRICE], errors="coerce")
+    f = f.dropna(subset=["_price"])
+    if len(f) > 0:
+        # Create 5 bands using quantiles
+        f["_band"] = pd.qcut(f["_price"], q=5, duplicates="drop")
+        band = f.groupby("_band").agg(
+            n_reviews=(COL_LABEL, "count"),
+            positive_share=(COL_LABEL, lambda s: float((s.astype(str) == "positive").mean())),
+            avg_rating=(COL_RATING, (lambda x: pd.to_numeric(x, errors="coerce").mean()) if COL_RATING else "mean")
+        ).reset_index()
+        st.dataframe(band, use_container_width=True)
+        ch = alt.Chart(band).mark_bar().encode(
+            x=alt.X("_band:N", title="Price band"),
+            y=alt.Y("positive_share:Q"),
+            tooltip=["_band", "n_reviews", "positive_share", "avg_rating"]
+        ).properties(height=280)
+        st.altair_chart(ch, use_container_width=True)
+    else:
+        st.caption("No numeric price values to band.")
+else:
+    st.caption("Price/label not available for banding.")
+
+# -----------------------------
+# Rating histogram
+# -----------------------------
+st.subheader("Rating histogram (filtered)")
+if COL_RATING and len(filtered) > 0:
+    r = pd.to_numeric(filtered[COL_RATING], errors="coerce").dropna()
+    if len(r) > 0:
+        rh = pd.DataFrame({"rating": r})
+        hist = alt.Chart(rh).mark_bar().encode(
+            x=alt.X("rating:Q", bin=alt.Bin(maxbins=10)), y=alt.Y("count()"),
+            tooltip=[alt.Tooltip("count()", title="reviews")]
+        ).properties(height=260)
+        st.altair_chart(hist, use_container_width=True)
+    else:
+        st.caption("No numeric ratings to chart.")
+else:
+    st.caption("Rating column not available.")
+
+# -----------------------------
 # Product-level rollups + downloads
 # -----------------------------
 st.subheader("Product-level rollups (filtered)")
@@ -372,13 +389,13 @@ if (COL_PID or COL_PTITLE) and len(filtered) > 0:
     st.dataframe(prod.sort_values("n_reviews", ascending=False).head(500), use_container_width=True)
 
     st.download_button(
-        "Download product rollups CSV",
+        "⬇️ Download product rollups CSV",
         data=prod.to_csv(index=False).encode("utf-8"),
         file_name="product_rollups.csv",
         mime="text/csv",
     )
 
-    # Top-N products chart
+    # Top-N products chart + CSV
     st.subheader("Top products by selected metric")
     metric = st.selectbox("Sort top products by", ["positive_share", "avg_rating", "n_reviews"], index=0)
     top_n = st.slider("Top N products", 5, 50, 20, 1)
@@ -403,7 +420,7 @@ if (COL_PID or COL_PTITLE) and len(filtered) > 0:
         st.altair_chart(chart_top, use_container_width=True)
 
         st.download_button(
-            "Download top-N products CSV",
+            "⬇️ Download top-N products CSV",
             data=top_df.to_csv(index=False).encode("utf-8"),
             file_name=f"top_{top_n}_{metric}.csv",
             mime="text/csv",
@@ -447,7 +464,4 @@ with st.expander("Single review prediction (demo)", expanded=False):
         st.success(f"Predicted (demo): **{label}**")
 
 st.markdown("---")
-st.caption(
-    "Fast mode uses a demo sample for reliability on Streamlit Cloud. "
-    "Switch to **Full** and provide a local path or Drive file ID to analyze the complete dataset."
-)
+st.caption("Running in **Fast mode** using a demo sample. Upload a CSV to analyze your own data.")
