@@ -1,4 +1,6 @@
-💄✨ Hybrid Sentiment Analysis — Fashion & Cosmetics
+💄✨ Hybrid Sentiment Analysis — Fashion & Cosmetics 
+
+app: https://hybrid-sentiment-three-gkuwzftv6yqnru825cdxhp.streamlit.app/ 
 
 Analyze brand sentiment for fashion & cosmetics reviews. The app blends lexicon signals + review metadata into a simple, explainable “hybrid” label, then lets you slice, explore keywords, track trends, and export product-level rollups — all in a beautiful Streamlit UI.
 Live mode: The public app now runs in Fast mode only (a small curated sample for reliability). Users can also upload their own CSV in the sidebar to analyze it instantly.
