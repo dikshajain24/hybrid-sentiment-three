@@ -118,10 +118,49 @@ pip install -r requirements.txt
    ├─ preprocess.py / ingest_merge.py / lexicon_sentiment.py / ...
    └─ utils.py
 
-📸 Screenshots:
+## 📸 Screenshots
+
+<!-- Main Highlight -->
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/e2952226-2c0b-444f-8fbb-cd6daa8313ac" 
+       alt="Homepage dashboard view" width="850"/>
+</p>
+
+<!-- Side by side 1 -->
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/4f029365-2585-498f-9942-3d642373d144" 
+       alt="Sentiment analysis results" width="420"/>
+  <img src="https://github.com/user-attachments/assets/ec1e71a2-941d-421e-a6d3-5b8e0d4b66f9" 
+       alt="Data preprocessing workflow" width="420"/>
+</p>
+
+<!-- Side by side 2 -->
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/bf178ba0-4681-4bec-a373-d114fe09729c" 
+       alt="User review input and prediction" width="420"/>
+  <img src="https://github.com/user-attachments/assets/213c4889-f594-4462-aba0-ffb7158567c0" 
+       alt="Feature engineering and cleaning step" width="420"/>
+</p>
+
+<!-- Side by side 3 -->
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/be29e85f-345d-49b7-9ffa-6299bd351670" 
+       alt="Visualization of sentiment distribution" width="420"/>
+  <img src="https://github.com/user-attachments/assets/4108e9d0-4c64-4927-a45a-c885da93cab9" 
+       alt="Model performance metrics" width="420"/>
+</p>
+
+<!-- Side by side 4 -->
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/77ad05b0-42c6-49c0-a05e-8c0a0dcf955b" 
+       alt="Detailed analysis report view" width="420"/>
+  <img src="https://github.com/user-attachments/assets/f348075c-b257-4700-bcc7-d0aa90952953" 
+       alt="Final results and insights dashboard" width="420"/>
+</p>
 
 
 🔒 Privacy & limitations
+
 
 This app is exploratory. The “hybrid” label is simple and explainable — great for dashboards and rollups, not a replacement for fully trained models.
 Public demo uses a small sample, so counts/ratios are indicative. For production decisions, run locally on your full data and validate.
